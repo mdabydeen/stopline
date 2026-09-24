@@ -1,0 +1,8 @@
+node_modules/
+.env*
+!.env.example
+.vercel/
+results/evidence-*.jsonl
+.venv-laya/
+*.tgz
+results/laya-serve.log
