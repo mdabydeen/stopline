@@ -105,6 +105,8 @@ Results: see [`results/`](results/) and the summary below.
 
 The gate is an experimental implementation and the evaluation is an initial measurement, not a production safety certification. For a smaller, implementation-independent exercise, use the [AI-assisted code review kit](https://michaeldabydeen.com/resources/review-kit.zip). It includes the code, worksheet, worked answer, sample team output, and a proposed facilitator guide.
 
+If you want to report a reproducible behaviour or propose a focused change, read the [contribution guide](CONTRIBUTING.md) first. It explains the checks to run and the evidence boundary for issues and pull requests.
+
 Teams that want to compare the exercise with their own review practice can read about the [private workshop interest path](https://michaeldabydeen.com/workshops/ai-assisted-code-review). That page describes a proposed pilot and does not reserve a date or accept payment.
 
 ## Limits
