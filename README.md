@@ -121,6 +121,8 @@ The gate is an experimental implementation and the evaluation is an initial meas
 
 If you want to report a reproducible behaviour or propose a focused change, read the [contribution guide](CONTRIBUTING.md) first. It explains the checks to run and the evidence boundary for issues and pull requests.
 
+For a security concern, read the [security policy](SECURITY.md) before opening an issue. Do not include credentials, tokens, personal information, or a complete exploit in a public issue.
+
 Teams that want to compare the exercise with their own review practice can read about the [private workshop interest path](https://michaeldabydeen.com/workshops/ai-assisted-code-review). That page describes a proposed pilot and does not reserve a date or accept payment.
 
 ## Limits
