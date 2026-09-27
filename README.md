@@ -49,7 +49,7 @@ The fifth row is the reason to use a model that returns a distribution. An argma
 
 ## Revision-bound approval example
 
-The small [`src/revisionGate.ts`](src/revisionGate.ts) helper demonstrates one adjacent delivery-contract rule: an approval is accepted only when its action identifier, proposed revision, and captured state identifier still match. The accompanying tests show the rejection when either the revision or state changes after approval.
+The small [`src/revisionGate.ts`](src/revisionGate.ts) helper demonstrates one adjacent delivery-contract rule: an approval is accepted only when its action identifier, proposed revision, and captured state identifier still match. The accompanying tests show the rejection when either the revision or state changes after approval. The [revision-bound approval note](docs/revision-bound-approval.md) explains the example and how to run it.
 
 This is an illustrative building block, not a repository merge control. It does not calculate a commit hash, authenticate the approver, or prove that a surrounding workflow cannot bypass the check.
 
