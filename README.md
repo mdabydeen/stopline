@@ -57,6 +57,20 @@ This is an illustrative building block, not a repository merge control. It does 
 
 Requires Node 20.12+ and, for Jev, the Vercel CLI.
 
+### See a local result first
+
+You can run the labelled keyword baseline without an API key or Vercel account:
+
+```bash
+npm install
+STOPLINE_BACKEND=keyword npm run eval
+```
+
+This is deliberately a weak, offline comparison. On the checked-in 49-case
+fixture set it reports the verdict agreement, unsafe allows, and stricter
+decisions that the model-backed runs should improve. It is a measurement
+baseline, not a safe unattended policy.
+
 ```bash
 npm install
 npx playwright install chromium
