@@ -1,6 +1,6 @@
 {
   "name": "stopline",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A decision gate for browser agents: Jev (or Laya) classifies each proposed action, a deterministic policy decides whether it runs.",
   "type": "module",
   "license": "MIT",

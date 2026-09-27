@@ -47,6 +47,12 @@ All thresholds live in [`src/policy.ts`](src/policy.ts):
 
 The fifth row is the reason to use a model that returns a distribution. An argmax of `reversible_change` at 0.70 with 0.25 on `public_or_irreversible` is not the same decision as `reversible_change` at 0.99.
 
+## Revision-bound approval example
+
+The small [`src/revisionGate.ts`](src/revisionGate.ts) helper demonstrates one adjacent delivery-contract rule: an approval is accepted only when its action identifier, proposed revision, and captured state identifier still match. The accompanying tests show the rejection when either the revision or state changes after approval.
+
+This is an illustrative building block, not a repository merge control. It does not calculate a commit hash, authenticate the approver, or prove that a surrounding workflow cannot bypass the check.
+
 ## Run it
 
 Requires Node 20.12+ and, for Jev, the Vercel CLI.
