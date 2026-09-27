@@ -94,6 +94,12 @@ Results: see [`results/`](results/) and the summary below.
 
 <!-- RESULTS -->
 
+## Continue the review
+
+The gate is an experimental implementation and the evaluation is an initial measurement, not a production safety certification. For a smaller, implementation-independent exercise, use the [AI-assisted code review kit](https://michaeldabydeen.com/resources/review-kit.zip). It includes the code, worksheet, worked answer, sample team output, and a proposed facilitator guide.
+
+Teams that want to compare the exercise with their own review practice can read about the [private workshop interest path](https://michaeldabydeen.com/workshops/ai-assisted-code-review). That page describes a proposed pilot and does not reserve a date or accept payment.
+
 ## Limits
 
 - The agent in the demo is a fixed script, not an LLM planner. That keeps runs repeatable and isolates the gate, but it means the demo does not show how often a real planner proposes bad actions.
