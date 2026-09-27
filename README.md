@@ -69,6 +69,7 @@ vercel env pull .env.local --yes
 npm test                              # policy unit tests, no network
 npm run eval                          # 49 labelled cases against Jev
 npm run demo                          # five scripted browser tasks through the gate
+npm run demo:revision                 # show a matching approval and a changed-revision rejection
 STOPLINE_INTERACTIVE=1 npm run demo   # approve "ask" verdicts yourself
 ```
 

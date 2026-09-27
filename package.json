@@ -1,6 +1,6 @@
 {
   "name": "stopline",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A decision gate for browser agents: Jev (or Laya) classifies each proposed action, a deterministic policy decides whether it runs.",
   "type": "module",
   "license": "MIT",
@@ -9,6 +9,7 @@
   },
   "scripts": {
     "demo": "tsx demo/run.ts",
+    "demo:revision": "tsx demo/revision-gate.ts",
     "eval": "tsx eval/run.ts",
     "test": "tsx --test src/*.test.ts",
     "typecheck": "tsc --noEmit",
