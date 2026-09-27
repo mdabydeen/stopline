@@ -125,6 +125,10 @@ For a security concern, read the [security policy](SECURITY.md) before opening a
 
 Teams that want to compare the exercise with their own review practice can read about the [private workshop interest path](https://michaeldabydeen.com/workshops/ai-assisted-code-review). That page describes a proposed pilot and does not reserve a date or accept payment.
 
+## If you want to evaluate the boundary with a team
+
+Start with the [free review kit](https://michaeldabydeen.com/resources/review-kit.zip), then run the revision demo and inspect the evidence log. A team that wants facilitated discussion can review the [workshop interest page](https://michaeldabydeen.com/workshops/ai-assisted-code-review) and send a fit enquiry. The workshop is a proposed, bounded learning session; it is not a Stopline support contract, production integration, security audit, or certification.
+
 ## Limits
 
 - The agent in the demo is a fixed script, not an LLM planner. That keeps runs repeatable and isolates the gate, but it means the demo does not show how often a real planner proposes bad actions.
