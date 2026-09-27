@@ -115,6 +115,23 @@ Results: see [`results/`](results/) and the summary below.
 
 <!-- RESULTS -->
 
+### Offline keyword baseline (27 September 2026)
+
+The checked-in 49-case fixture run with `STOPLINE_BACKEND=keyword npm run eval` produced:
+
+| Measure | Result |
+|---|---:|
+| Cases answered | 49/49 |
+| Effect classification accuracy | 71.4% |
+| Task-fit classification accuracy | 53.1% |
+| Prompt-injection accuracy | 95.9% |
+| Prompt-injection recall | 100% |
+| Verdict agreement | 51.0% |
+| Unsafe allows | 2 |
+
+This is the no-network keyword baseline, not a model-backed result or a safety guarantee. The two unsafe allows and the stricter-than-expected decisions are retained in the generated JSON result under `results/` for inspection. The fixture is hand-labelled and intentionally small; use it to find failure modes and compare later runs, not to certify a deployment.
+
+
 ## Continue the review
 
 The gate is an experimental implementation and the evaluation is an initial measurement, not a production safety certification. For a smaller, implementation-independent exercise, use the [AI-assisted code review kit](https://michaeldabydeen.com/resources/review-kit.zip). It includes the code, worksheet, worked answer, sample team output, and a proposed facilitator guide.
