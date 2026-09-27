@@ -138,6 +138,8 @@ This is the no-network keyword baseline, not a model-backed result or a safety g
 
 The gate is an experimental implementation and the evaluation is an initial measurement, not a production safety certification. For a smaller, implementation-independent exercise, use the [AI-assisted code review kit](https://michaeldabydeen.com/resources/review-kit.zip). It includes the code, worksheet, worked answer, sample team output, and a proposed facilitator guide.
 
+For a focused team discussion, use the [team evaluation guide](docs/team-evaluation-guide.md). It turns one proposed browser-agent action into a short decision record covering allow, ask, block, evidence ownership, and recovery. The guide is an evaluation exercise, not a production rollout plan.
+
 If you want to report a reproducible behaviour or propose a focused change, read the [contribution guide](CONTRIBUTING.md) first. It explains the checks to run and the evidence boundary for issues and pull requests.
 
 For a security concern, read the [security policy](SECURITY.md) before opening an issue. Do not include credentials, tokens, personal information, or a complete exploit in a public issue.
