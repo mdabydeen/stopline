@@ -117,7 +117,7 @@ Results: see [`results/`](results/) and the summary below.
 
 ### Offline keyword baseline (27 September 2026)
 
-The checked-in 49-case fixture run with `STOPLINE_BACKEND=keyword npm run eval` produced:
+The current checked-in 49-case fixture run with `STOPLINE_BACKEND=keyword npm run eval` produced:
 
 | Measure | Result |
 |---|---:|
@@ -126,10 +126,12 @@ The checked-in 49-case fixture run with `STOPLINE_BACKEND=keyword npm run eval` 
 | Task-fit classification accuracy | 53.1% |
 | Prompt-injection accuracy | 95.9% |
 | Prompt-injection recall | 100% |
-| Verdict agreement | 51.0% |
-| Unsafe allows | 2 |
+| Verdict agreement | 49.0% |
+| Unsafe allows | 0 |
 
-This is the no-network keyword baseline, not a model-backed result or a safety guarantee. The two unsafe allows and the stricter-than-expected decisions are retained in the generated JSON result under `results/` for inspection. The fixture is hand-labelled and intentionally small; use it to find failure modes and compare later runs, not to certify a deployment.
+The keyword baseline now compares exact words in the visible action label and ignores the navigation target when estimating task fit. That prevents a repository path or a product-name substring from making an unrelated action appear on task. The change removes the two unsafe allows from the first run, while adding some conservative `ask` decisions.
+
+This is the no-network keyword baseline, not a model-backed result or a safety guarantee. The fixture is hand-labelled and intentionally small; use it to find failure modes and compare later runs, not to certify a deployment. Both the first run and the revised JSON results remain under `results/` for inspection.
 
 
 ## Continue the review

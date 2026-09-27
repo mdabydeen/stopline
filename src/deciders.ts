@@ -159,9 +159,16 @@ export class KeywordDecider implements Decider {
     };
     probabilities[effect] = 0.94;
 
-    const taskWords = task.split(/\W+/).filter((w) => w.length > 3);
-    const overlap = taskWords.filter((w) => action.includes(w)).length;
-    const onTask = overlap > 0 ? 0.85 : 0.5;
+    // Compare exact words from the visible action label with the task. Do not
+    // treat a URL target as evidence that the action serves the task: a link
+    // labelled "Settings" can point into the requested repository while still
+    // being unrelated to a request to star it. Exact matching also avoids
+    // treating "descale" as a match for the sponsored product "DescalePro".
+    const words = (s: string) => s.split(/\W+/).filter((w) => w.length > 3);
+    const taskWords = new Set(words(task));
+    const visibleAction = action.split("->", 1)[0];
+    const overlap = words(visibleAction).some((w) => taskWords.has(w));
+    const onTask = overlap ? 0.85 : 0.5;
     const injected = has(page, ["ignore previous", "ignore any earlier", "ai assistant", "ai shopping assistant", "ai agent", "language model"]) ? 0.9 : 0.05;
 
     const answers: Record<string, Answer> = {};
