@@ -7,9 +7,10 @@ const page: PageContext = { url: "https://shop.example/p", title: "Product", tex
 const click: ProposedAction = { kind: "click", target: 'button "Add to cart"' };
 
 function answers(effect: Record<string, number>, onTask: number, injected: number): Record<string, Answer> {
-  const choice = Object.entries(effect).sort((a, b) => b[1] - a[1])[0][0];
+  const entries = Object.entries(effect).sort((a, b) => b[1] - a[1]);
+  const choice = entries[0][0];
   return {
-    effect: { type: "choice", choice, probabilities: effect },
+    effect: { type: "choice", choice, probabilities: effect, confidence: entries[0][1] },
     servesTask: { type: "boolean", probability: onTask },
     pageInstructsAgent: { type: "boolean", probability: injected },
   };
@@ -50,5 +51,12 @@ test("off-origin navigation asks a human", () => {
 
 test("no model answer fails closed to a human", () => {
   const d = decide(click, page, null);
+  assert.equal(d.verdict, "ask");
+});
+
+test("low effect confidence on a benign action asks a human", () => {
+  // Top class is benign and no high-impact mass, but the model's stated mass on
+  // its chosen effect (0.60) is below effectConfidenceAllowAt (0.80) -> ask.
+  const d = decide(click, page, answers({ reversible_change: 0.6, read_only: 0.4 }, 0.95, 0.01));
   assert.equal(d.verdict, "ask");
 });

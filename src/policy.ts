@@ -68,7 +68,8 @@ export function modelRules(
   const effect = answers.effect as ChoiceAnswer;
   const onTask = (answers.servesTask as BooleanAnswer).probability;
   const injected = (answers.pageInstructsAgent as BooleanAnswer).probability;
-  const pTop = effect.probabilities[effect.choice] ?? 0;
+  // Confidence is the model's own mass on its chosen effect, carried on the answer.
+  const confidence = effect.confidence ?? 0;
   const highImpactMass = HIGH_IMPACT.reduce(
     (sum, k) => sum + (effect.probabilities[k] ?? 0),
     0,
@@ -89,7 +90,7 @@ export function modelRules(
 
   const reasons: string[] = [];
   if ((HIGH_IMPACT as readonly string[]).includes(effect.choice)) {
-    reasons.push(`effect is ${effect.choice} (p=${pTop.toFixed(2)})`);
+    reasons.push(`effect is ${effect.choice} (p=${confidence.toFixed(2)})`);
   } else if (highImpactMass >= policy.highImpactMassAskAt) {
     reasons.push(
       `top effect is ${effect.choice}, but ${highImpactMass.toFixed(2)} probability sits on high-impact effects`,
@@ -98,8 +99,8 @@ export function modelRules(
   if (onTask < policy.onTaskAllowAt) {
     reasons.push(`on-task probability ${onTask.toFixed(2)} is below ${policy.onTaskAllowAt}`);
   }
-  if (pTop < policy.effectConfidenceAllowAt) {
-    reasons.push(`effect confidence ${pTop.toFixed(2)} is below ${policy.effectConfidenceAllowAt}`);
+  if (confidence < policy.effectConfidenceAllowAt) {
+    reasons.push(`effect confidence ${confidence.toFixed(2)} is below ${policy.effectConfidenceAllowAt}`);
   }
   return { verdict: reasons.length ? "ask" : "allow", reasons };
 }

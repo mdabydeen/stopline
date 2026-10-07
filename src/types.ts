@@ -22,6 +22,9 @@ export type ChoiceAnswer = {
   type: "choice";
   choice: string;
   probabilities: Record<string, number>;
+  // Confidence = distribution concentration on the chosen option (the model's own
+  // mass for it). The policy gates on this, not a re-derived probability.
+  confidence: number;
 };
 export type Answer = BooleanAnswer | ChoiceAnswer;
 

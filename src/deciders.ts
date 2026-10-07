@@ -121,12 +121,12 @@ function normaliseOne(a: any, q: Question): Answer {
     return { type: "boolean", probability: p };
   }
   const probabilities: Record<string, number> = a.probabilities ?? {};
-  let choice: string = a.choice;
+  let choice: string = a.choice ?? "";
   if (!choice) {
-    choice = Object.entries(probabilities).sort((x, y) => y[1] - x[1])[0]?.[0];
+    choice = Object.entries(probabilities).sort((x, y) => y[1] - x[1])[0]?.[0] ?? "";
   }
   if (!choice) throw new Error(`Unrecognised choice answer: ${JSON.stringify(a)}`);
-  return { type: "choice", choice, probabilities };
+  return { type: "choice", choice, probabilities, confidence: probabilities[choice] ?? 0 };
 }
 
 // A keyword heuristic with the same interface. It is not a model. It exists
@@ -173,10 +173,10 @@ export class KeywordDecider implements Decider {
 
     const answers: Record<string, Answer> = {};
     for (const [key, q] of Object.entries(questions)) {
-      if (key === "effect") answers[key] = { type: "choice", choice: effect, probabilities };
+      if (key === "effect") answers[key] = { type: "choice", choice: effect, probabilities, confidence: probabilities[effect] ?? 0 };
       else if (key === "servesTask") answers[key] = { type: "boolean", probability: onTask };
       else if (key === "pageInstructsAgent") answers[key] = { type: "boolean", probability: injected };
-      else answers[key] = q.type === "boolean" ? { type: "boolean", probability: 0.5 } : { type: "choice", choice: Object.keys(q.criteria)[0], probabilities: {} };
+      else answers[key] = q.type === "boolean" ? { type: "boolean", probability: 0.5 } : { type: "choice", choice: Object.keys(q.criteria)[0], probabilities: {}, confidence: 0 };
     }
     return { answers, latencyMs: performance.now() - started, backend: this.name };
   }
