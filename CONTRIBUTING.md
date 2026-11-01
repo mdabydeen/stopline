@@ -4,7 +4,7 @@ Stopline is an experimental decision gate for browser agents. Contributions that
 
 ## Before opening an issue
 
-- Reproduce the behaviour with Node 20 or newer.
+- Reproduce the behaviour with Node 20.12 or newer.
 - Include the command you ran and the smallest relevant input or action description.
 - Separate an observed result from a proposed policy change.
 - Do not include credentials, private browser content, tokens, or production data.
@@ -14,9 +14,13 @@ Stopline is an experimental decision gate for browser agents. Contributions that
 Run the checks that cover your change:
 
 ```sh
-npm test
-npm run typecheck
+npm ci
+npm run verify          # unit tests and typecheck
+npm audit --omit=dev
 ```
+
+CI runs the same checks on Node 20.12 for every push and pull request; see
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 If the change affects the revision-bound example, also run:
 

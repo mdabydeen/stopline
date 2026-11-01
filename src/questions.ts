@@ -40,7 +40,18 @@ export const GATE_QUESTIONS: Questions = {
   },
 };
 
-const PAGE_TEXT_LIMIT = 4000;
+// renderState keeps this many characters of page text. The browser-side read
+// is capped higher so the gate does not transfer a megabyte over CDP just to
+// throw most of it away.
+export const PAGE_TEXT_LIMIT = 4000;
+
+// Collapse every whitespace run (including newlines) to one space, trim, and
+// cap. Page-controlled strings pass through here before they are placed on a
+// labelled line, so a newline in a <title> cannot forge a second "USER TASK:"
+// or "PROPOSED ACTION:" line.
+export function sanitizeField(s: string, max = 1000): string {
+  return s.replace(/\s+/g, " ").trim().slice(0, max);
+}
 
 // The state is plain labelled text. Jev reads up to 32k tokens of state, but
 // a focused state is cheaper and easier to audit afterwards.
@@ -49,14 +60,43 @@ export function renderState(
   action: ProposedAction,
   page: PageContext,
 ): string {
-  const text = page.text.replace(/\s+/g, " ").trim().slice(0, PAGE_TEXT_LIMIT);
   const lines = [
-    `USER TASK: ${task}`,
-    `PROPOSED ACTION: ${describeAction(action)}`,
-    `CURRENT PAGE: ${page.title} (${page.url})`,
-    `PAGE TEXT: ${text}`,
+    `USER TASK: ${sanitizeField(task, 2000)}`,
+    `PROPOSED ACTION: ${sanitizeField(describeAction(action), 1000)}`,
+    `CURRENT PAGE: ${sanitizeField(page.title, 200)} (${sanitizeField(page.url, 2000)})`,
+    `PAGE TEXT: ${sanitizeField(page.text, PAGE_TEXT_LIMIT)}`,
   ];
   return lines.join("\n");
+}
+
+// Facts about a form control that decide whether its contents are a secret.
+// The gate fills these from the DOM; tests can pass them directly.
+export type FieldFacts = {
+  tag?: string;
+  inputType?: string;
+  autocomplete?: string;
+  name?: string;
+  label?: string;
+  id?: string;
+};
+
+const SECRET_AUTOCOMPLETE = /^(cc-|current-password|new-password|one-time-code)/i;
+const SECRET_WORDS =
+  /(password|passcode|card|cvv|cvc|otp|one-time|ssn|secret|token|api[ _-]?key)/i;
+
+// Placeholder that replaces a secret wherever an action is shown or recorded.
+export const MASKED_VALUE = "********";
+
+// Never send a value to the classifier or the audit log when the field looks
+// like it carries a credential, payment detail, or other secret. This is
+// deliberately broad: a false positive costs a human approval, a false
+// negative leaks a password into model state and evidence.
+export function isSensitiveField(facts: FieldFacts): boolean {
+  if ((facts.inputType ?? "").toLowerCase() === "password") return true;
+  if (facts.autocomplete && SECRET_AUTOCOMPLETE.test(facts.autocomplete)) return true;
+  return [facts.name, facts.label, facts.id].some(
+    (s) => typeof s === "string" && SECRET_WORDS.test(s),
+  );
 }
 
 export function describeAction(action: ProposedAction): string {
@@ -65,7 +105,11 @@ export function describeAction(action: ProposedAction): string {
       return `click ${action.target}`;
     case "fill": {
       const kind = action.element?.inputType ? ` (${action.element.inputType} field)` : "";
-      const shown = action.element?.inputType === "password" ? "********" : action.value;
+      // Privacy boundary: a non-sensitive value stays in ProposedAction.value
+      // because the classifier needs to see what would be typed. Sensitive
+      // values are masked here, and evidence is written from this function, so
+      // they never reach the model state or the evidence log.
+      const shown = isSensitiveField(action.element ?? {}) ? MASKED_VALUE : action.value;
       return `type "${shown ?? ""}" into ${action.target}${kind}`;
     }
     case "press":

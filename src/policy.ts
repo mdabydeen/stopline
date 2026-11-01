@@ -1,12 +1,12 @@
 import type {
   Answer,
-  BooleanAnswer,
   ChoiceAnswer,
   Decision,
   PageContext,
   ProposedAction,
   Verdict,
 } from "./types.ts";
+import { isSensitiveField } from "./questions.ts";
 
 // All thresholds in one place so a reviewer can read the whole policy.
 export const DEFAULT_POLICY = {
@@ -23,15 +23,42 @@ export const DEFAULT_POLICY = {
   highImpactMassAskAt: 0.2,
 } as const;
 
-export type Policy = typeof DEFAULT_POLICY;
+// Same keys and defaults, but every value is a plain number so a caller can
+// override one threshold without widening the whole object to literal types.
+export type Policy = { [K in keyof typeof DEFAULT_POLICY]: number };
 
+const EFFECT_CHOICES = new Set([
+  "read_only",
+  "reversible_change",
+  "public_or_irreversible",
+  "credentials_or_money",
+]);
 const HIGH_IMPACT = ["public_or_irreversible", "credentials_or_money"] as const;
-const SECRET_AUTOCOMPLETE =
-  /^(cc-|current-password|new-password|one-time-code)/i;
+const DANGEROUS_PROTOCOLS = new Set(["javascript:", "data:", "file:", "blob:"]);
 
 const RANK: Record<Verdict, number> = { allow: 0, ask: 1, block: 2 };
 const stricter = (a: Verdict, b: Verdict): Verdict =>
   RANK[a] >= RANK[b] ? a : b;
+
+function isHttp(url: URL): boolean {
+  return url.protocol === "http:" || url.protocol === "https:";
+}
+
+function resolveUrl(value: string, base: string): URL | null {
+  try {
+    return new URL(value, base);
+  } catch {
+    return null;
+  }
+}
+
+function pageOrigin(page: PageContext): string | null {
+  try {
+    return new URL(page.url).origin;
+  } catch {
+    return null;
+  }
+}
 
 // Layer 1. Deterministic rules from DOM facts. No model involved, so the
 // model can add friction on top of these but can never remove it.
@@ -40,23 +67,194 @@ export function hardRules(
   page: PageContext,
 ): { verdict: Verdict; reasons: string[] } {
   const reasons: string[] = [];
+  let verdict: Verdict = "allow";
+  const add = (v: Verdict, reason: string) => {
+    verdict = stricter(verdict, v);
+    if (!reasons.includes(reason)) reasons.push(reason);
+  };
+
   const el = action.element ?? {};
-  if (action.kind === "fill") {
-    if (el.inputType === "password") reasons.push("fills a password field");
-    if (el.autocomplete && SECRET_AUTOCOMPLETE.test(el.autocomplete)) {
-      reasons.push(`fills a field marked autocomplete=${el.autocomplete}`);
+  if (action.kind === "fill" && isSensitiveField(el)) {
+    if ((el.inputType ?? "").toLowerCase() === "password") {
+      add("ask", "fills a password field");
+    } else if (el.autocomplete) {
+      add("ask", `fills a field marked autocomplete=${el.autocomplete}`);
+    } else {
+      add("ask", "fills a sensitive field");
     }
   }
+
+  // Enter in a credential field can submit the form just as a click can. Other
+  // keys (navigation, editing) stay with the model rules.
+  if (
+    action.kind === "press" &&
+    isSensitiveField(el) &&
+    /^(enter|numpadenter)$/i.test(action.value ?? "")
+  ) {
+    add("ask", "presses Enter in a sensitive field");
+  }
+
+  const origin = pageOrigin(page);
+
+  const checkHref = (label: string) => {
+    if (!el.href) return;
+    const target = resolveUrl(el.href, page.url);
+    if (!target) {
+      add("ask", `${label} target is not a valid URL`);
+    } else if (DANGEROUS_PROTOCOLS.has(target.protocol)) {
+      add("block", `${label} target uses ${target.protocol} URL`);
+    } else if (!isHttp(target)) {
+      add("ask", `${label} target uses ${target.protocol} URL`);
+    } else if (!origin || target.origin !== origin) {
+      add("ask", `${label} navigates off-origin to ${target.origin}`);
+    }
+  };
+
+  const checkForm = (label: string) => {
+    if (!el.formAction) return;
+    const target = resolveUrl(el.formAction, page.url);
+    if (!target) {
+      add("ask", `${label} form action is not a valid URL`);
+    } else if (DANGEROUS_PROTOCOLS.has(target.protocol)) {
+      add("block", `${label} form action uses ${target.protocol} URL`);
+    } else if (!isHttp(target)) {
+      add("ask", `${label} form action uses ${target.protocol} URL`);
+    } else if (!origin || target.origin !== origin) {
+      add("ask", `${label} submits a form off-origin to ${target.origin}`);
+    }
+  };
+
+  if (action.kind === "click" || action.kind === "press") {
+    // Enter can submit a form just as a click can, so both kinds inspect both
+    // targets. A dangerous scheme is a hard block rather than an ask.
+    checkHref(action.kind);
+    checkForm(action.kind);
+  }
+
   if (action.kind === "goto" && action.value) {
-    try {
-      const from = new URL(page.url).origin;
-      const to = new URL(action.value, page.url).origin;
-      if (from !== to) reasons.push(`navigates off-origin to ${to}`);
-    } catch {
-      reasons.push("navigation target is not a valid URL");
+    const target = resolveUrl(action.value, page.url);
+    if (!target) {
+      add("ask", "navigation target is not a valid URL");
+    } else if (DANGEROUS_PROTOCOLS.has(target.protocol)) {
+      add("block", `navigation target uses ${target.protocol} URL`);
+    } else if (!isHttp(target)) {
+      add("ask", `navigation target uses ${target.protocol} URL`);
+    } else if (!origin || target.origin !== origin) {
+      add("ask", `navigates off-origin to ${target.origin}`);
     }
   }
-  return { verdict: reasons.length ? "ask" : "allow", reasons };
+
+  return { verdict, reasons };
+}
+
+function isUnitNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+type ModelAnswers = {
+  effect: Pick<ChoiceAnswer, "choice" | "probabilities" | "confidence">;
+  servesTask: number;
+  pageInstructsAgent: number;
+};
+
+// Defensive validation for deciders that bypass normaliseAnswers (custom or
+// buggy implementations). A malformed answer fails closed to a human; it must
+// never fall through to an allow.
+function validateModelAnswers(
+  answers: Record<string, Answer>,
+): { ok: true; value: ModelAnswers } | { ok: false; reason: string } {
+  const root = asRecord(answers);
+  if (!root) return { ok: false, reason: "answers are missing" };
+
+  const effect = asRecord(root.effect);
+  if (!effect) return { ok: false, reason: "effect is missing or not an object" };
+  if (effect.type !== "choice") {
+    return { ok: false, reason: "effect is not a choice answer" };
+  }
+  if (typeof effect.choice !== "string" || !EFFECT_CHOICES.has(effect.choice)) {
+    return {
+      ok: false,
+      reason: `effect choice ${JSON.stringify(effect.choice)} is not a known effect`,
+    };
+  }
+  if (!isUnitNumber(effect.confidence)) {
+    return {
+      ok: false,
+      reason: "effect confidence must be a finite number in [0,1]",
+    };
+  }
+
+  const probsRaw = asRecord(effect.probabilities);
+  if (!probsRaw) {
+    return { ok: false, reason: "effect probabilities are missing or not an object" };
+  }
+  const probabilities: Record<string, number> = {};
+  for (const [key, value] of Object.entries(probsRaw)) {
+    if (!EFFECT_CHOICES.has(key)) {
+      return {
+        ok: false,
+        reason: `effect probability key ${JSON.stringify(key)} is not a known effect`,
+      };
+    }
+    if (!isUnitNumber(value)) {
+      return {
+        ok: false,
+        reason: `effect probability ${key} must be a finite number in [0,1]`,
+      };
+    }
+    probabilities[key] = value;
+  }
+  if (!Object.prototype.hasOwnProperty.call(probabilities, effect.choice)) {
+    return {
+      ok: false,
+      reason: `effect is missing a probability for ${effect.choice}`,
+    };
+  }
+
+  const booleanProbability = (
+    key: "servesTask" | "pageInstructsAgent",
+  ): number | null => {
+    const answer = asRecord(root[key]);
+    if (!answer || answer.type !== "boolean" || !isUnitNumber(answer.probability)) {
+      return null;
+    }
+    return answer.probability;
+  };
+
+  const servesTask = booleanProbability("servesTask");
+  if (servesTask === null) {
+    return {
+      ok: false,
+      reason: "servesTask must be a boolean answer with a finite probability in [0,1]",
+    };
+  }
+  const pageInstructsAgent = booleanProbability("pageInstructsAgent");
+  if (pageInstructsAgent === null) {
+    return {
+      ok: false,
+      reason:
+        "pageInstructsAgent must be a boolean answer with a finite probability in [0,1]",
+    };
+  }
+
+  return {
+    ok: true,
+    value: {
+      effect: {
+        choice: effect.choice,
+        probabilities,
+        confidence: effect.confidence,
+      },
+      servesTask,
+      pageInstructsAgent,
+    },
+  };
 }
 
 // Layer 2. Turns calibrated probabilities into a verdict. This is where the
@@ -65,11 +263,14 @@ export function modelRules(
   answers: Record<string, Answer>,
   policy: Policy = DEFAULT_POLICY,
 ): { verdict: Verdict; reasons: string[] } {
-  const effect = answers.effect as ChoiceAnswer;
-  const onTask = (answers.servesTask as BooleanAnswer).probability;
-  const injected = (answers.pageInstructsAgent as BooleanAnswer).probability;
+  const checked = validateModelAnswers(answers);
+  if (!checked.ok) {
+    return { verdict: "ask", reasons: [`invalid model answer: ${checked.reason}`] };
+  }
+
+  const { effect, servesTask: onTask, pageInstructsAgent: injected } = checked.value;
   // Confidence is the model's own mass on its chosen effect, carried on the answer.
-  const confidence = effect.confidence ?? 0;
+  const confidence = effect.confidence;
   const highImpactMass = HIGH_IMPACT.reduce(
     (sum, k) => sum + (effect.probabilities[k] ?? 0),
     0,

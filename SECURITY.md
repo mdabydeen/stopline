@@ -24,6 +24,19 @@ describe an implementation defect, an unsafe default in the example, or a
 limitation that is already documented. There is no response-time or patching
 guarantee.
 
+## Data handling and privacy
+
+Stopline sends the current page text (truncated), page title and URL, the user
+task, and the proposed action label and value to the configured model gateway.
+Values for fields that look like credentials, payment details, or other secrets
+(password, card, OTP, and similar) are masked in the action description, but
+other typed values are not. Do not use real credentials, payment details,
+personal information, or sensitive pages with these examples.
+
+Evidence logs are written locally as JSONL and are not sent anywhere by this
+project. They can still contain action labels, page URLs and titles, task text,
+and model answers, so treat a log as sensitive as the session it recorded.
+
 ## Scope boundary
 
 The repository does not promise protection for a surrounding application,
