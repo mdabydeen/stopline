@@ -8,7 +8,12 @@ cd "$(dirname "$0")/.."
 mkdir -p results
 
 echo "== node $(node --version), npm $(npm --version)"
-npm install --no-audit --no-fund
+if [ -f package-lock.json ]; then
+  npm ci --no-audit --no-fund
+else
+  echo "no package-lock.json; falling back to npm install"
+  npm install --no-audit --no-fund
+fi
 npx playwright install chromium
 
 echo "== vercel auth"
@@ -21,8 +26,11 @@ vercel env pull .env.local --yes
 grep -q '^VERCEL_OIDC_TOKEN=' .env.local && echo "VERCEL_OIDC_TOKEN present in .env.local"
 
 echo "== typecheck and unit tests"
-npx tsc --noEmit
+npm run typecheck
 npm test
+
+echo "== production dependency audit (fails on high or critical)"
+npm audit --omit=dev --audit-level=high
 
 echo "== eval: keyword baseline"
 STOPLINE_BACKEND=keyword npm run eval | tail -40
@@ -42,6 +50,8 @@ if [ "${SKIP_LAYA:-0}" != "1" ]; then
   if [ -z "$PY" ]; then echo "No Python 3.10+ found; skipping Laya"; exit 0; fi
   [ -d .venv-laya ] || "$PY" -m venv .venv-laya
   .venv-laya/bin/python -m pip install --quiet --upgrade pip
+  # Latest laya[serve] from PyPI, not pinned. The resolved version is printed
+  # below; pin it in a requirements file if you need exact reproducibility.
   .venv-laya/bin/python -m pip install --quiet "laya[serve]"
   .venv-laya/bin/python -c "import laya; print('laya', getattr(laya, '__version__', '?'))"
   LAYA_DEVICE="${LAYA_DEVICE:-mps}" LAYA_PRELOAD=1 LAYA_HOST=127.0.0.1 LAYA_PORT=8000 \

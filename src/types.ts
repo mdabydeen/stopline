@@ -55,8 +55,16 @@ export type ProposedAction = {
     tag?: string;
     inputType?: string;
     autocomplete?: string;
+    // Resolved absolute URL for links, when the element has one.
+    href?: string;
+    // Resolved absolute form action, when the element has one.
     formAction?: string;
     formMethod?: string;
+    // Name, id, and visible label help policy and masking identify sensitive
+    // fields even when inputType/autocomplete are missing.
+    name?: string;
+    label?: string;
+    id?: string;
   };
 };
 
@@ -71,6 +79,7 @@ export type Verdict = "allow" | "ask" | "block";
 export type Decision = {
   verdict: Verdict;
   reasons: string[];
-  // Which layer produced the strictest verdict.
-  source: "hard-rule" | "model" | "policy-default";
+  // Which layer produced the strictest verdict. "policy-error" means the
+  // gate failed closed because the policy call itself threw.
+  source: "hard-rule" | "model" | "policy-default" | "policy-error";
 };

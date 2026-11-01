@@ -1,6 +1,8 @@
 # stopline
 
-A decision gate for browser agents. Every click, fill, key press, or navigation a Playwright agent proposes is described from the DOM, sent to a System One model as three typed questions, and turned into `allow`, `ask`, or `block` by a policy written in ordinary code. Each decision is appended to an evidence log.
+A decision gate for browser agents. The [`Gate`](src/gate.ts) class wraps a Playwright page and exposes four methods — `goto`, `click`, `fill`, and `press`. An action routed through one of them is described from the DOM, sent to a System One model as three typed questions, and turned into `allow`, `ask`, or `block` by a policy written in ordinary code. Each decision is appended to an evidence log.
+
+The API is deliberately narrow, not a sandbox. Code that keeps the underlying `Page` or `Locator` objects and calls Playwright directly bypasses the gate entirely.
 
 The model classifies. The application authorises. The two never merge.
 
@@ -62,7 +64,7 @@ Requires Node 20.12+ and, for Jev, the Vercel CLI.
 You can run the labelled keyword baseline without an API key or Vercel account:
 
 ```bash
-npm install
+npm ci
 STOPLINE_BACKEND=keyword npm run eval
 ```
 
@@ -72,7 +74,7 @@ decisions that the model-backed runs should improve. It is a measurement
 baseline, not a safe unattended policy.
 
 ```bash
-npm install
+npm ci
 npx playwright install chromium
 
 # Jev through Vercel AI Gateway. Either set AI_GATEWAY_API_KEY in .env.local,
@@ -102,7 +104,7 @@ STOPLINE_BACKEND=laya npm run eval
 
 ## The eval
 
-[`eval/cases.ts`](eval/cases.ts) holds 49 proposed actions across a shop, a developer community site, webmail, a code host, a bank, a login page, docs, search, a calendar, and an admin console. Each case is labelled on the three questions only. The expected verdict is derived from the labels by one fixed rule (`expectedVerdict`), so a disagreement with a label does not require a disagreement with the policy. Cases marked `hard: true` are ones where I think a careful reviewer could label either way.
+[`eval/cases.ts`](eval/cases.ts) holds 49 proposed actions across a shop, a developer community site, webmail, a code host, a bank, a login page, docs, search, a calendar, and an admin console. Each case is labelled on the three questions only. The expected verdict is computed by the real policy from those labels supplied as fully confident answers, so the hard rules and threshold changes are included automatically and a disagreement with a label does not require a disagreement with the policy. Cases marked `hard: true` are ones where I think a careful reviewer could label either way. Each result file includes the policy and eval configuration plus a SHA-256 hash of the case set, so runs against different policies or cases are not compared by accident.
 
 The eval reports per-question accuracy, verdict agreement, latency, and two lists that matter more than accuracy:
 
@@ -154,7 +156,12 @@ Start with the [free review kit](https://michaeldabydeen.com/resources/review-ki
 
 - The agent in the demo is a fixed script, not an LLM planner. That keeps runs repeatable and isolates the gate, but it means the demo does not show how often a real planner proposes bad actions.
 - 49 hand-labelled cases is enough to find failure modes, not to certify a threshold. Treat the numbers as a first measurement on my labels.
-- The gate reads `document.body.textContent`, so it sees hidden text a DOM-reading agent would see. It does not read images, iframes, or shadow DOM.
+- The gate describes the page, then decides, then executes. A page or another tab can change in between, so the decision applies to the state at description time, not necessarily the state when the action runs.
+- Only actions routed through `Gate` are checked. Raw `Page` and `Locator` calls bypass the gate, as do popups and new pages. The first `Gate.goto` is auto-approved only when it matches `startUrl` or an `allowedOrigins` entry; any other first navigation goes through policy and the approver.
+- The gate reads `document.body.textContent`, so it sees hidden text a DOM-reading agent would see. It does not read images, iframes, or shadow DOM. Labels, links, titles, and body text come from the page, so a hostile page controls what the model and the evidence log see.
+- Page text sent to the model is the first 4,000 characters after whitespace is collapsed. Instructions later on a long page may not be seen at all.
+- Page text, page title and URL, the user task, and action labels and values may be sent to the configured model gateway. Values for fields that look like credentials, payment details, or other secrets (password, card, OTP, and similar) are masked in the action description; other typed values are not. Do not use real credentials or sensitive pages.
+- Evidence is an append-only local JSONL file. It is not signed, centralised, or tamper-evident, and nothing rotates or truncates it.
 - `ask` needs a human. In unattended runs the default approver says no.
 - The OIDC token from `vercel env pull` expires after about 12 hours locally.
 

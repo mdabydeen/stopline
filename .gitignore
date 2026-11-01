@@ -3,6 +3,7 @@ node_modules/
 !.env.example
 .vercel/
 results/evidence-*.jsonl
+results/eval-*.json
 .venv-laya/
 *.tgz
 results/laya-serve.log
